@@ -13,6 +13,9 @@ const { apiLimiter } = require('./middleware/rate-limit.middleware');
 // Create Express app
 const app = express();
 
+// Trust proxy for Render/Heroku (fixes rate limiter X-Forwarded-For issue)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
     contentSecurityPolicy: config.nodeEnv === 'production' ? undefined : false,

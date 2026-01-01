@@ -61,33 +61,64 @@ app.use(errorHandler);
 // For Vercel serverless
 module.exports = app;
 
-// For local development with WebSocket
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-    const { initializeSocketServer } = require('./websocket/socket-server');
+// Service type router - allows same codebase to run as different services
+const SERVICE_TYPE = process.env.SERVICE_TYPE || 'api';
 
-    // Create HTTP server
-    const server = http.createServer(app);
+const startServer = async () => {
+    const PORT = process.env.PORT || config.port;
 
-    // Initialize WebSocket server
-    initializeSocketServer(server);
+    switch (SERVICE_TYPE) {
+        case 'signaling': {
+            // WebRTC Signaling server only
+            const { startSignalingServer } = require('./services/signaling.service');
+            startSignalingServer(PORT);
+            break;
+        }
 
-    // Start server
-    const PORT = config.port;
+        case 'websocket': {
+            // Chat WebSocket server only
+            const { initializeSocketServer } = require('./websocket/socket-server');
+            const server = http.createServer(app);
+            initializeSocketServer(server);
 
-    server.listen(PORT, '0.0.0.0', () => {
-        logger.info(`🚀 Nextus API server running on port ${PORT}`);
-        logger.info(`📡 Environment: ${config.nodeEnv}`);
-        logger.info(`🔗 API URL: http://localhost:${PORT}/api/v1`);
-        logger.info(`🔌 WebSocket ready`);
-    });
+            server.listen(PORT, '0.0.0.0', () => {
+                logger.info(`🔌 WebSocket server running on port ${PORT}`);
+            });
+            break;
+        }
+
+        case 'api':
+        default: {
+            // Full API server with WebSocket (for development or single-instance)
+            const { initializeSocketServer } = require('./websocket/socket-server');
+            const server = http.createServer(app);
+
+            // Only attach WebSocket if not in production multi-service mode
+            if (process.env.NODE_ENV !== 'production' || !process.env.SEPARATE_SERVICES) {
+                initializeSocketServer(server);
+            }
+
+            server.listen(PORT, '0.0.0.0', () => {
+                logger.info(`🚀 Nextus API server running on port ${PORT}`);
+                logger.info(`📡 Environment: ${config.nodeEnv}`);
+                logger.info(`🔗 API URL: http://localhost:${PORT}/api/v1`);
+                if (!process.env.SEPARATE_SERVICES) {
+                    logger.info(`🔌 WebSocket ready`);
+                }
+            });
+            break;
+        }
+    }
+};
+
+// Start if not in Vercel
+if (!process.env.VERCEL) {
+    startServer();
 
     // Graceful shutdown
     process.on('SIGTERM', () => {
         logger.info('SIGTERM received. Shutting down gracefully...');
-        server.close(() => {
-            logger.info('Server closed');
-            process.exit(0);
-        });
+        process.exit(0);
     });
 
     process.on('unhandledRejection', (reason, promise) => {
@@ -99,3 +130,4 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
         process.exit(1);
     });
 }
+

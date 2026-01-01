@@ -1,0 +1,28 @@
+# Cloudflare Tunnel Configuration for Nextus
+# Place this file in /etc/cloudflared/ on your VM
+# Or run: cloudflared tunnel ingress-rules
+
+tunnel: nextus-tunnel
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # REST API
+  - hostname: api.nexarats.com
+    service: http://localhost:3000
+    originRequest:
+      noTLSVerify: true
+
+  # WebSocket (Chat, Presence)
+  - hostname: ws.nexarats.com
+    service: http://localhost:3001
+    originRequest:
+      noTLSVerify: true
+
+  # WebRTC Signaling
+  - hostname: media.nexarats.com
+    service: http://localhost:3002
+    originRequest:
+      noTLSVerify: true
+
+  # Catch-all (404)
+  - service: http_status:404

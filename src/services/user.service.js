@@ -230,6 +230,72 @@ const searchUsers = async (query, workspaceId = null, limit = 20) => {
     return users;
 };
 
+/**
+ * Save FCM token for push notifications
+ * @param {string} userId - User ID
+ * @param {string} token - FCM token
+ * @param {string} platform - Device platform (android/ios)
+ */
+const saveFcmToken = async (userId, token, platform = 'android') => {
+    // Check if token already exists
+    const { data: existing } = await supabase
+        .from('user_fcm_tokens')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token', token)
+        .single();
+
+    if (existing) {
+        // Update last used
+        await supabase
+            .from('user_fcm_tokens')
+            .update({ last_used_at: new Date().toISOString() })
+            .eq('id', existing.id);
+        return;
+    }
+
+    // Insert new token
+    await supabase.from('user_fcm_tokens').insert({
+        user_id: userId,
+        token,
+        platform,
+        created_at: new Date().toISOString(),
+        last_used_at: new Date().toISOString(),
+    });
+};
+
+/**
+ * Delete FCM token (on logout)
+ * @param {string} userId - User ID
+ * @param {string} token - FCM token (optional - deletes all if not provided)
+ */
+const deleteFcmToken = async (userId, token = null) => {
+    let query = supabase
+        .from('user_fcm_tokens')
+        .delete()
+        .eq('user_id', userId);
+
+    if (token) {
+        query = query.eq('token', token);
+    }
+
+    await query;
+};
+
+/**
+ * Get user's FCM tokens for sending push notifications
+ * @param {string} userId - User ID
+ * @returns {Array} FCM tokens
+ */
+const getUserFcmTokens = async (userId) => {
+    const { data } = await supabase
+        .from('user_fcm_tokens')
+        .select('token')
+        .eq('user_id', userId);
+
+    return data?.map((t) => t.token) || [];
+};
+
 module.exports = {
     getUserProfile,
     updateUserProfile,
@@ -237,4 +303,8 @@ module.exports = {
     updateUserPresence,
     getUserById,
     searchUsers,
+    saveFcmToken,
+    deleteFcmToken,
+    getUserFcmTokens,
 };
+

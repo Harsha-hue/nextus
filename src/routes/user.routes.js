@@ -20,6 +20,10 @@ router.patch('/me', updateProfileValidator, validate, userController.updateMe);
 router.patch('/me/status', updateStatusValidator, validate, userController.updateStatus);
 router.patch('/me/presence', updatePresenceValidator, validate, userController.updatePresence);
 
+// FCM Token for push notifications
+router.post('/fcm-token', userController.saveFcmToken);
+router.delete('/fcm-token', userController.deleteFcmToken);
+
 // Search
 router.get('/search', userController.searchUsers);
 

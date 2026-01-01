@@ -125,6 +125,54 @@ const searchUsers = async (req, res, next) => {
     }
 };
 
+/**
+ * Save FCM token for push notifications
+ * POST /api/v1/users/fcm-token
+ */
+const saveFcmToken = async (req, res, next) => {
+    try {
+        const { fcmToken, platform } = req.body;
+
+        if (!fcmToken) {
+            return res.status(400).json({
+                success: false,
+                error: 'FCM token is required',
+            });
+        }
+
+        await userService.saveFcmToken(req.userId, fcmToken, platform);
+        res.json(success(null, 'FCM token saved successfully'));
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({
+                success: false,
+                error: error.message,
+            });
+        }
+        next(error);
+    }
+};
+
+/**
+ * Delete FCM token (on logout)
+ * DELETE /api/v1/users/fcm-token
+ */
+const deleteFcmToken = async (req, res, next) => {
+    try {
+        const { fcmToken } = req.body;
+        await userService.deleteFcmToken(req.userId, fcmToken);
+        res.json(success(null, 'FCM token deleted successfully'));
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({
+                success: false,
+                error: error.message,
+            });
+        }
+        next(error);
+    }
+};
+
 module.exports = {
     getMe,
     updateMe,
@@ -132,4 +180,7 @@ module.exports = {
     updatePresence,
     getUser,
     searchUsers,
+    saveFcmToken,
+    deleteFcmToken,
 };
+

@@ -1,6 +1,7 @@
 const { firestore } = require('../config/firebase');
 const { v4: uuidv4 } = require('uuid');
 const { getIO } = require('../config/socket');
+const notificationService = require('./notification.service');
 
 // Firestore collection references
 const messagesCollection = firestore.collection('messages');
@@ -62,6 +63,22 @@ const sendMessage = async (messageData, channelId, user) => {
         io.to(`channel:${channelId}`).emit('message:new', message);
     } catch (error) {
         console.log('Socket not initialized, skipping broadcast');
+    }
+
+    // Send push notifications to channel members (except sender)
+    try {
+        await notificationService.notifyChannelMembers(channelId, {
+            type: mentions?.length > 0 ? 'mention' : 'message',
+            title: `${user.full_name || user.username} in #${channelId.substring(0, 8)}`,
+            body: content.length > 100 ? content.substring(0, 100) + '...' : content,
+            data: {
+                channelId,
+                messageId,
+                preview: content.substring(0, 50),
+            },
+        }, [user.id]);
+    } catch (error) {
+        console.log('Push notification failed:', error.message);
     }
 
     return message;
